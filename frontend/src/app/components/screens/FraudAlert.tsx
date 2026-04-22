@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Check } from 'lucide-react';
+import { Check, MapPin } from 'lucide-react';
+import { PSB } from '../ui/shared';
 
 const CHECKLIST = [
   'I initiated this transaction myself',
@@ -12,6 +13,12 @@ export default function FraudAlert() {
   const navigate = useNavigate();
   const [secs, setSecs] = useState(28 * 60 + 43);
   const [checked, setChecked] = useState([false, false, false]);
+  const [alertTime] = useState(() =>
+    new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+  );
+  const [alertDate] = useState(() =>
+    new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+  );
 
   useEffect(() => {
     const t = setInterval(() => setSecs((p) => (p > 0 ? p - 1 : 0)), 1000);
@@ -31,32 +38,39 @@ export default function FraudAlert() {
   return (
     <div
       className="min-h-full flex flex-col items-center px-5 py-10"
-      style={{ background: '#FFFBEB' }}
+      style={{ background: PSB.yellowBg }}
     >
       {/* Icon */}
       <div
-        className="w-20 h-20 rounded-full flex items-center justify-center mb-5 border-[3px] border-[#D97706]"
-        style={{ background: '#FEF3C7' }}
+        className="w-20 h-20 rounded-full flex items-center justify-center mb-5 border-[3px]"
+        style={{ background: '#FEF3C7', borderColor: PSB.yellow }}
       >
         <span className="text-4xl">⏸️</span>
       </div>
 
       {/* Headline */}
-      <h1 className="text-2xl font-extrabold text-gray-900 mb-3 text-center">
+      <h1 className="text-2xl font-extrabold text-gray-900 mb-1 text-center">
         Transaction Paused
       </h1>
+
+      {/* Timestamp + location */}
+      <div className="flex items-center gap-1.5 mb-3">
+        <MapPin className="w-3 h-3 text-gray-400" />
+        <p className="text-xs text-gray-400">Flagged at {alertTime} · {alertDate} · India</p>
+      </div>
+
       <p className="text-sm text-gray-600 text-center max-w-[280px] leading-relaxed mb-8">
         We noticed unusual patterns in this session. This is a{' '}
-        <span className="font-bold text-[#D97706]">30-minute safety pause</span> — not a
+        <span className="font-bold" style={{ color: PSB.yellow }}>30-minute safety pause</span> — not a
         permanent block.
       </p>
 
       {/* Countdown Timer */}
       <div
-        className="w-32 h-32 rounded-full border-[6px] border-[#D97706] flex flex-col items-center justify-center mb-8 bg-white"
-        style={{ boxShadow: '0 4px 20px rgba(217,119,6,0.15)' }}
+        className="w-32 h-32 rounded-full border-[6px] flex flex-col items-center justify-center mb-8 bg-white"
+        style={{ borderColor: PSB.yellow, boxShadow: '0 4px 20px rgba(217,119,6,0.15)' }}
       >
-        <span className="text-3xl font-extrabold text-[#D97706] tracking-tight">
+        <span className="text-3xl font-extrabold tracking-tight" style={{ color: PSB.yellow }}>
           {mm}:{ss}
         </span>
         <span className="text-[10px] text-gray-400 mt-0.5">remaining</span>
@@ -71,15 +85,13 @@ export default function FraudAlert() {
               key={i}
               onClick={() => toggle(i)}
               className="w-full flex items-center gap-3 bg-white rounded-2xl p-4 border-[1.5px] transition-all active:scale-[0.98]"
-              style={{
-                borderColor: checked[i] ? '#16A34A' : '#E5E7EB',
-              }}
+              style={{ borderColor: checked[i] ? PSB.green : '#E5E7EB' }}
             >
               <div
                 className="w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 transition-all"
                 style={{
-                  background: checked[i] ? '#16A34A' : '#F3F4F6',
-                  borderColor: checked[i] ? '#16A34A' : '#D1D5DB',
+                  background:  checked[i] ? PSB.green : '#F3F4F6',
+                  borderColor: checked[i] ? PSB.green : '#D1D5DB',
                 }}
               >
                 {checked[i] && <Check className="w-3.5 h-3.5 text-white" strokeWidth={3} />}
@@ -95,24 +107,26 @@ export default function FraudAlert() {
         <button
           disabled={!allChecked}
           onClick={() => navigate('/app')}
-          className={`w-full py-4 rounded-2xl font-bold text-base transition-all ${
-            allChecked
-              ? 'bg-[#4338CA] text-white hover:bg-[#3730A3] active:scale-[0.98]'
-              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-          }`}
+          className="w-full py-4 rounded-2xl font-bold text-base transition-all"
+          style={{
+            background: allChecked ? PSB.green : '#E5E7EB',
+            color:      allChecked ? 'white'   : '#9CA3AF',
+            cursor:     allChecked ? 'pointer' : 'not-allowed',
+          }}
         >
           {allChecked ? 'Confirm & Proceed ✓' : 'Complete checklist to proceed'}
         </button>
         <button
           onClick={() => navigate('/app/security')}
-          className="w-full py-4 bg-white text-[#DC2626] border-2 border-[#DC2626] rounded-2xl font-bold text-sm hover:bg-red-50 active:scale-[0.98] transition-all"
+          className="w-full py-4 bg-white rounded-2xl font-bold text-sm active:scale-[0.98] transition-all border-2"
+          style={{ color: PSB.red, borderColor: PSB.red }}
         >
           Cancel Transaction
         </button>
       </div>
 
       <p className="text-[10px] text-gray-400 text-center mt-6">
-        A fraud analyst may review this session anonymously.
+        A Punjab & Sind Bank fraud analyst may review this session anonymously.
       </p>
     </div>
   );

@@ -2,6 +2,21 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft } from 'lucide-react';
 
+// ─── PSB BRAND COLOURS ────────────────────────────────────────────────────────
+export const PSB = {
+  green:      '#1A6B3C',   // primary PSB green
+  greenLight: '#228B4E',   // hover green
+  greenBg:    '#F0FBF4',   // green tint bg
+  greenMid:   '#2EAD62',   // accent green
+  yellow:     '#D97706',   // warning / amber
+  yellowBg:   '#FFFBEB',
+  red:        '#DC2626',   // danger / fraud
+  redBg:      '#FEF2F2',
+  white:      '#FFFFFF',
+  offWhite:   '#F8FAF9',
+  gray:       '#6B7280',
+};
+
 // ─── PILL ─────────────────────────────────────────────────────────────────────
 interface PillProps {
   children: ReactNode;
@@ -11,7 +26,7 @@ interface PillProps {
   className?: string;
 }
 
-export function Pill({ children, color = '#4338CA', bg, outline, className = '' }: PillProps) {
+export function Pill({ children, color = PSB.green, bg, outline, className = '' }: PillProps) {
   return (
     <span
       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${className}`}
@@ -65,17 +80,48 @@ export function BackArrow({ to, onClick }: BackArrowProps) {
   );
 }
 
-// ─── STATUS BAR ───────────────────────────────────────────────────────────────
+// ─── STATUS BAR (live clock + location) ───────────────────────────────────────
+import { useState, useEffect } from 'react';
+
 export function StatusBar() {
+  const [time, setTime] = useState('');
+  const [location, setLocation] = useState('India');
+
+  useEffect(() => {
+    const tick = () => {
+      const now = new Date();
+      setTime(now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json`
+        );
+        const data = await res.json();
+        const country = data.address?.country || 'India';
+        const city = data.address?.city || data.address?.town || data.address?.state || '';
+        setLocation(city ? `${city}, ${country}` : country);
+      } catch {
+        setLocation('India');
+      }
+    }, () => setLocation('India'));
+  }, []);
+
   return (
-    <div className="h-11 bg-white flex items-center justify-between px-4 text-xs border-b border-gray-100 flex-shrink-0">
-      <span className="font-medium">9:41</span>
+    <div className="h-11 flex items-center justify-between px-4 text-xs flex-shrink-0"
+      style={{ background: PSB.green }}>
+      <span className="font-bold text-white">{time}</span>
+      <span className="text-white/70 text-[10px]">📍 {location}</span>
       <div className="flex gap-1 items-center">
-        <div className="w-4 h-3 border-2 border-gray-800 rounded-sm" />
-        <div className="w-4 h-3 border-2 border-gray-800 rounded-sm" />
-        <div className="w-6 h-3 border-2 border-gray-800 rounded-sm relative">
-          <div className="absolute right-[-3px] top-1/2 -translate-y-1/2 w-1 h-1.5 bg-gray-800 rounded-sm" />
-          <div className="absolute inset-0.5 bg-gray-800 rounded-sm scale-x-75 origin-left" />
+        <div className="w-4 h-2.5 border border-white/70 rounded-sm relative overflow-hidden">
+          <div className="absolute inset-0 bg-white/70 rounded-sm" style={{ width: '75%' }} />
         </div>
       </div>
     </div>
@@ -101,7 +147,7 @@ export function ArcGauge({ score }: ArcGaugeProps) {
         <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
           <stop offset="0%" stopColor="#DC2626" />
           <stop offset="45%" stopColor="#D97706" />
-          <stop offset="100%" stopColor="#16A34A" />
+          <stop offset="100%" stopColor="#2EAD62" />
         </linearGradient>
       </defs>
       <path
@@ -121,7 +167,7 @@ export function ArcGauge({ score }: ArcGaugeProps) {
         strokeDashoffset={offset}
       />
       <circle cx={nx} cy={ny} r={7} fill="white" />
-      <circle cx={nx} cy={ny} r={3.5} fill="#4338CA" />
+      <circle cx={nx} cy={ny} r={3.5} fill={PSB.green} />
     </svg>
   );
 }
@@ -130,23 +176,23 @@ export function ArcGauge({ score }: ArcGaugeProps) {
 export const SEVERITY_COLOR: Record<string, string> = {
   critical: '#DC2626',
   moderate: '#D97706',
-  minor: '#CA8A04',
+  minor:    '#CA8A04',
 };
 
 export const SEVERITY_BG: Record<string, string> = {
   critical: '#FEF2F2',
   moderate: '#FFFBEB',
-  minor: '#FEFCE8',
+  minor:    '#FEFCE8',
 };
 
 export const RISK_COLOR: Record<string, string> = {
-  Low: '#16A34A',
+  Low:    '#1A6B3C',
   Medium: '#D97706',
-  High: '#DC2626',
+  High:   '#DC2626',
 };
 
 export const RISK_BG: Record<string, string> = {
-  Low: '#F0FDF4',
+  Low:    '#F0FBF4',
   Medium: '#FFFBEB',
-  High: '#FEF2F2',
+  High:   '#FEF2F2',
 };

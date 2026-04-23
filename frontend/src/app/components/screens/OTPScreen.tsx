@@ -77,17 +77,6 @@ export default function OTPScreen() {
           Verify & Continue →
         </button>
 
-        <div className="flex items-center gap-3 w-full text-gray-400 text-sm mb-5">
-          <div className="flex-1 h-px bg-gray-200" />
-          <span>or</span>
-          <div className="flex-1 h-px bg-gray-200" />
-        </div>
-
-        <button className="flex items-center gap-2.5 bg-gray-50 border border-gray-200 rounded-2xl px-6 py-3 text-sm text-gray-700 font-medium hover:bg-gray-100 transition-colors">
-          <span className="text-lg">👆</span>
-          Use Biometric Login
-        </button>
-
         <p className="text-xs text-gray-400 mt-6">
           Having trouble?{' '}
           <span className="text-[#4338CA] font-medium">Call 1800-XXX-XXXX</span>

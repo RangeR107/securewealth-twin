@@ -97,7 +97,7 @@ export default function LoginScreen() {
 
         {/* Trust Badges */}
         <div className="flex justify-center gap-2 mt-8 flex-wrap">
-          {['RBI Compliant', 'DPDP 2023', 'PSB Secure'].map((badge) => (
+          {['RBI Compliant', 'PSB Secure'].map((badge) => (
             <div
               key={badge}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 rounded-full border border-green-100"

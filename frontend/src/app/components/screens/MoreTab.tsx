@@ -5,12 +5,12 @@ import { PROFILES } from '../../../data/mockData';
 import type { ProfileKey } from '../../../data/mockData';
 
 const FEATURES = [
-  { icon: '👤', label: 'Profile & KYC',    path: null           },
-  { icon: '🕐', label: 'Audit Trail',      path: '/officer'     },
-  { icon: '🔔', label: 'Notifications',    path: null           },
-  { icon: '📋', label: 'Compliance Docs',  path: null           },
-  { icon: '❓', label: 'Help & Support',   path: null           },
-  { icon: '🛡️', label: 'Guardian Mode',   path: '/guardian-setup' },
+  { icon: '👤', label: 'Profile & KYC',    path: '/app/kyc'              },
+  { icon: '🕐', label: 'Audit Trail',      path: '/officer'              },
+  { icon: '🔔', label: 'Notifications',    path: '/app/notifications'    },
+  { icon: '📋', label: 'Compliance Docs',  path: '/app/compliance'       },
+  { icon: '❓', label: 'Help & Support',   path: '/app/help'             },
+  { icon: '🛡️', label: 'Guardian Mode',   path: '/guardian-setup'       },
 ];
 
 export default function MoreTab() {

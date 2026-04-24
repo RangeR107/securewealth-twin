@@ -237,3 +237,147 @@ class AuditLogEntry(BaseModel):
 class AuditLogResponse(BaseModel):
     items: List[AuditLogEntry]
     total: int
+
+
+# ─── INTELLIGENCE LAYER (premium features) ──────────────────────────────────
+# Financial Pulse, Affordability, Peer Benchmark, Top Recommendation,
+# Transaction Narrative, Trust Check (Invisible Security Indicator).
+
+class FinancialPulse(BaseModel):
+    score: int = Field(..., ge=0, le=100)
+    previousScore: int
+    delta: int                             # score - previousScore
+    trend: Literal["up", "down", "flat"]
+    label: str                             # e.g. "Healthy", "Needs attention"
+    headline: str                          # one-liner summary
+    breakdown: List[dict]                  # [{label, value, color}]
+
+
+class AffordabilityResponse(BaseModel):
+    monthlyIncome: float
+    committedExpenses: float
+    goalAllocation: float
+    safeToSpend: float
+    status: Literal["safe", "stretch", "risky"]
+    narrative: str                         # Monzo-style one-liner
+    checkedAmount: Optional[float] = None
+    canAfford: Optional[bool] = None
+    afterPurchase: Optional[float] = None
+
+
+class PeerBenchmark(BaseModel):
+    profileKey: ProfileKey
+    cohort: str                             # e.g. "Young Professionals, Metro"
+    yourScore: int
+    cohortAverage: int
+    percentile: int                         # 0-100
+    narrative: str
+    compareTo: List[dict]                   # [{metric, you, peers, better}]
+
+
+class Recommendation(BaseModel):
+    id: int
+    severity: Severity
+    icon: str
+    title: str
+    desc: str
+    action: str
+    impact: str                             # e.g. "Save ₹18K/yr"
+    rationale: str
+
+
+class TransactionNarrative(BaseModel):
+    id: str
+    merchant: str
+    category: str
+    amount: float
+    timestamp: str
+    narrative: str                          # Capital One-style plain English
+    tag: Optional[str] = None               # e.g. "recurring", "new merchant", "higher than usual"
+    emoji: str
+
+
+class TransactionNarrativeList(BaseModel):
+    items: List[TransactionNarrative]
+    total: int
+
+
+class TrustCheckRequest(BaseModel):
+    profileKey: ProfileKey
+    recipient: str
+
+
+class TrustCheckResponse(BaseModel):
+    status: Literal["known", "new", "flagged"]
+    label: str                              # "Trusted contact" | "New recipient" | "Flagged"
+    color: Literal["green", "yellow", "red"]
+    pastCount: int
+    lastSeen: Optional[str] = None
+    note: str
+
+
+# ─── EXTRAS (KYC, notifications, compliance, help) ──────────────────────────
+
+class KycStatus(BaseModel):
+    profileKey: ProfileKey
+    status: Literal["verified", "pending", "action_required"]
+    level: Literal["Full KYC", "Min KYC", "Video KYC"]
+    panLinked: bool
+    aadhaarLinked: bool
+    lastVerified: str
+    expiresOn: str
+    documents: List[dict]                   # [{name, status, date}]
+
+
+class NotificationItem(BaseModel):
+    id: str
+    type: Literal["security", "insight", "transaction", "guardian", "system"]
+    title: str
+    body: str
+    timestamp: str
+    read: bool
+    severity: Literal["info", "warning", "critical"] = "info"
+    icon: str
+
+
+class ComplianceDoc(BaseModel):
+    id: str
+    title: str
+    category: Literal["regulation", "policy", "statement", "report"]
+    issuedBy: str
+    date: str
+    fileSize: str
+    summary: str
+
+
+class HelpFaq(BaseModel):
+    id: str
+    question: str
+    answer: str
+    category: str
+
+
+# ─── SECURITY ADDITIONS (Session DNA + Location) ────────────────────────────
+
+class SessionDNA(BaseModel):
+    deviceId: str
+    deviceLabel: str                       # "iPhone 14 · iOS 17"
+    trusted: bool
+    ipMasked: str                          # "49.36.xx.xx"
+    network: str                           # "Jio 5G"
+    lastSeen: str
+    location: str
+    biometric: Literal["fingerprint", "face", "none"]
+    behaviorScore: int                     # 0-100 behavioral confidence
+    signals: List[AuditSignal]
+
+
+class LocationGuard(BaseModel):
+    homeCity: str
+    currentCity: str
+    currentCountry: str
+    safe: bool
+    riskLevel: RiskLevel
+    travelMode: bool
+    lastLocationChange: str
+    narrative: str

@@ -1,16 +1,31 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Bell, TrendingUp, ArrowRight } from 'lucide-react';
 import { useProfileStore } from '../../../context/profileStore';
-import { Card, Pill } from '../ui/shared';
+import { Card, Pill, PSB } from '../ui/shared';
 import { SCENARIOS } from '../../../data/mockData';
 import type { ScenarioKey } from '../../../data/mockData';
+import { fetchPeerBenchmark, type PeerBenchmark } from '../../../data/api';
 
 export default function InsightsTab() {
   const navigate = useNavigate();
-  const { profile } = useProfileStore();
+  const { profile, activeProfile } = useProfileStore();
   const [scenario, setScenario] = useState<ScenarioKey>('normal');
   const s = SCENARIOS[scenario];
+
+  const [bench, setBench] = useState<PeerBenchmark | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const b = await fetchPeerBenchmark(activeProfile);
+        if (!cancelled) setBench(b);
+      } catch (e) {
+        console.warn('[InsightsTab] peer-benchmark failed — using static UI', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeProfile]);
 
   return (
     <div className="bg-gray-50 min-h-full">
@@ -113,31 +128,76 @@ export default function InsightsTab() {
           </Card>
         </div>
 
-        {/* ── Financial Inefficiency ── */}
+        {/* ── Peer Benchmark (live) ── */}
         <div>
-          <h3 className="text-sm font-bold text-gray-900 mb-3">Wealth Intelligence</h3>
+          <h3 className="text-sm font-bold text-gray-900 mb-3">Peer Benchmarking</h3>
           <Card className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-10 h-10 bg-indigo-50 rounded-full flex items-center justify-center flex-shrink-0">
                 <TrendingUp className="w-5 h-5 text-[#4338CA]" />
               </div>
-              <div>
-                <p className="text-sm font-bold text-gray-900">Peer Benchmark</p>
-                <p className="text-xs text-gray-500">vs. similar {profile.type} profiles</p>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-gray-900">
+                  {bench ? bench.cohort : `vs. similar ${profile.type} profiles`}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5 leading-snug">
+                  {bench ? bench.narrative : 'Loading cohort data…'}
+                </p>
               </div>
             </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                ['Savings Rate', profile.savings, '#16A34A'],
-                ['Risk Score', `${profile.immuneScore}`, '#4338CA'],
-                ['Goals', `${profile.goals} active`, '#D97706'],
-              ].map(([lbl, val, color]) => (
-                <div key={lbl} className="bg-gray-50 rounded-xl p-2.5 text-center">
-                  <p className="text-[10px] text-gray-400 mb-0.5">{lbl}</p>
-                  <p className="text-xs font-bold" style={{ color }}>{val}</p>
+
+            {bench && (
+              <>
+                <div className="flex items-end gap-2 mb-3">
+                  <span className="text-2xl font-extrabold" style={{ color: PSB.green }}>
+                    {bench.percentile}
+                    <span className="text-xs text-gray-400 font-semibold ml-0.5">%ile</span>
+                  </span>
+                  <span className="text-xs text-gray-500 pb-1">
+                    — you {bench.yourScore} vs peers {bench.cohortAverage}
+                  </span>
                 </div>
-              ))}
-            </div>
+                <div className="h-2 rounded-full bg-gray-100 overflow-hidden relative">
+                  <div
+                    className="absolute top-0 h-full w-0.5 bg-gray-400"
+                    style={{ left: `${bench.cohortAverage}%` }}
+                  />
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${bench.yourScore}%`, background: PSB.green }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mt-3">
+                  {bench.compareTo.map((c) => (
+                    <div key={c.metric} className="bg-gray-50 rounded-xl p-2.5">
+                      <p className="text-[10px] text-gray-400">{c.metric}</p>
+                      <div className="flex items-baseline gap-1.5 mt-0.5">
+                        <p className="text-sm font-extrabold" style={{ color: c.better ? PSB.green : PSB.yellow }}>
+                          {c.you}
+                        </p>
+                        <p className="text-[10px] text-gray-400">vs {c.peers}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {!bench && (
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ['Savings Rate', profile.savings, '#16A34A'],
+                  ['Risk Score', `${profile.immuneScore}`, '#4338CA'],
+                  ['Goals', `${profile.goals} active`, '#D97706'],
+                ].map(([lbl, val, color]) => (
+                  <div key={lbl} className="bg-gray-50 rounded-xl p-2.5 text-center">
+                    <p className="text-[10px] text-gray-400 mb-0.5">{lbl}</p>
+                    <p className="text-xs font-bold" style={{ color }}>{val}</p>
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         </div>
       </div>

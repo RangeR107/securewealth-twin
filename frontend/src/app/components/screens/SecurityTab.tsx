@@ -1,14 +1,56 @@
 import { useNavigate } from 'react-router';
-import { Shield, Bell, CheckCircle, ChevronRight, AlertTriangle, MapPin } from 'lucide-react';
+import { Shield, Bell, CheckCircle, ChevronRight, AlertTriangle, MapPin, Smartphone, Wifi, Fingerprint } from 'lucide-react';
 import { useProfileStore } from '../../../context/profileStore';
 import { Card, Pill, RISK_COLOR, RISK_BG, PSB } from '../ui/shared';
 import { useState, useEffect } from 'react';
+import {
+  fetchSessionDNA,
+  fetchLocationGuard,
+  toggleTravelMode,
+  type SessionDNA,
+  type LocationGuard,
+} from '../../../data/api';
 
 export default function SecurityTab() {
   const navigate = useNavigate();
-  const { profile } = useProfileStore();
+  const { profile, activeProfile } = useProfileStore();
   const riskColor = RISK_COLOR[profile.riskLevel];
   const riskBg = RISK_BG[profile.riskLevel];
+
+  const [sessionDna, setSessionDna] = useState<SessionDNA | null>(null);
+  const [location, setLocation] = useState<LocationGuard | null>(null);
+  const [travelToggling, setTravelToggling] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [dna, loc] = await Promise.all([
+          fetchSessionDNA(activeProfile),
+          fetchLocationGuard(activeProfile),
+        ]);
+        if (cancelled) return;
+        setSessionDna(dna);
+        setLocation(loc);
+      } catch (e) {
+        console.warn('[SecurityTab] session/location fetch failed', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeProfile]);
+
+  const handleToggleTravel = async () => {
+    if (travelToggling) return;
+    setTravelToggling(true);
+    try {
+      const next = await toggleTravelMode(activeProfile);
+      setLocation(next);
+    } catch (e) {
+      console.warn('[SecurityTab] travel-mode toggle failed', e);
+    } finally {
+      setTravelToggling(false);
+    }
+  };
 
   // Live timestamps
   const [now, setNow] = useState(new Date());
@@ -126,33 +168,76 @@ export default function SecurityTab() {
           </div>
         </Card>
 
-        {/* ── International Transaction Warning ── */}
-        <Card className="p-4" style={{ background: '#FFF7ED', border: '1.5px solid #D97706' }}>
+        {/* ── Location Guard (live) ── */}
+        <Card className="p-4" style={{ background: location?.safe ? PSB.greenBg : PSB.yellowBg, border: `1.5px solid ${location?.safe ? PSB.green : PSB.yellow}` }}>
           <div className="flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0"
-              style={{ background: '#FFFBEB' }}>
-              <MapPin className="w-5 h-5" style={{ color: PSB.yellow }} />
+            <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0">
+              <MapPin className="w-5 h-5" style={{ color: location?.safe ? PSB.green : PSB.yellow }} />
             </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Location-Based Protection Active</p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Base location: <b>India</b>. Any international transaction will trigger an automatic 30-min safety pause and alert.
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-gray-900">Location Guard</p>
+                <Pill color={location?.travelMode ? PSB.yellow : PSB.green} bg={location?.travelMode ? PSB.yellowBg : PSB.greenBg}>
+                  {location?.travelMode ? 'Travel ON' : 'Home'}
+                </Pill>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                {location?.narrative ?? 'Location protection active.'}
               </p>
+              {location && (
+                <div className="flex gap-2 mt-2 text-[10px] text-gray-500">
+                  <span>🏠 {location.homeCity}</span>
+                  <span>→</span>
+                  <span>📍 {location.currentCity}, {location.currentCountry}</span>
+                </div>
+              )}
+              <button
+                onClick={handleToggleTravel}
+                disabled={travelToggling}
+                className="mt-2 text-[11px] font-semibold"
+                style={{ color: PSB.green }}
+              >
+                {travelToggling ? '…' : location?.travelMode ? 'Turn off travel mode' : 'Enable travel mode'}
+              </button>
             </div>
           </div>
         </Card>
 
-        {/* ── Behavioral Session ── */}
+        {/* ── Session DNA (live) ── */}
         <Card className="p-4" style={{ background: PSB.greenBg }}>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
               <CheckCircle className="w-6 h-6" style={{ color: PSB.green }} />
             </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-900">Last session — Normal behavior</p>
-              <p className="text-xs text-gray-500 mt-0.5">Session DNA matched your baseline</p>
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-gray-900">
+                Session DNA — {sessionDna?.trusted ? 'Trusted device' : 'New device'}
+              </p>
+              <p className="text-xs text-gray-500 mt-0.5">
+                Behavioural confidence: {sessionDna?.behaviorScore ?? '—'}/100
+              </p>
             </div>
           </div>
+          {sessionDna && (
+            <div className="grid grid-cols-2 gap-2 text-[11px]">
+              <div className="flex items-center gap-2 bg-white/60 rounded-lg px-2.5 py-1.5">
+                <Smartphone className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-gray-700 truncate">{sessionDna.deviceLabel}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/60 rounded-lg px-2.5 py-1.5">
+                <Wifi className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-gray-700 truncate">{sessionDna.network}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/60 rounded-lg px-2.5 py-1.5">
+                <Fingerprint className="w-3.5 h-3.5 text-gray-500" />
+                <span className="text-gray-700 capitalize">{sessionDna.biometric}</span>
+              </div>
+              <div className="flex items-center gap-2 bg-white/60 rounded-lg px-2.5 py-1.5">
+                <span className="text-gray-500 font-mono">IP</span>
+                <span className="text-gray-700 truncate">{sessionDna.ipMasked}</span>
+              </div>
+            </div>
+          )}
         </Card>
 
         {/* ── Demo Trigger ── */}

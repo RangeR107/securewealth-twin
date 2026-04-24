@@ -12,6 +12,12 @@ import FraudAlert from './components/screens/FraudAlert';
 import AIAdvisor from './components/screens/AIAdvisor';
 import GuardianSetup from './components/screens/GuardianSetup';
 import OfficerView from './components/screens/OfficerView';
+import TransferScreen from './components/screens/TransferScreen';
+import TransactionsScreen from './components/screens/TransactionsScreen';
+import KycScreen from './components/screens/KycScreen';
+import NotificationsScreen from './components/screens/NotificationsScreen';
+import ComplianceScreen from './components/screens/ComplianceScreen';
+import HelpScreen from './components/screens/HelpScreen';
 
 export const router = createBrowserRouter([
   {
@@ -44,6 +50,12 @@ export const router = createBrowserRouter([
       { path: 'more', Component: MoreTab },
       { path: 'life-events', Component: LifeEventsDetail },
       { path: 'advisor', Component: AIAdvisor },
+      { path: 'transfer', Component: TransferScreen },
+      { path: 'transactions', Component: TransactionsScreen },
+      { path: 'kyc', Component: KycScreen },
+      { path: 'notifications', Component: NotificationsScreen },
+      { path: 'compliance', Component: ComplianceScreen },
+      { path: 'help', Component: HelpScreen },
     ],
   },
 ]);

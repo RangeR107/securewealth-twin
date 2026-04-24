@@ -1,9 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { Bell, ChevronDown, MessageCircle, ToggleLeft, Calendar, ShieldCheck, Clock, Eye, EyeOff, Fingerprint, MapPin, X } from 'lucide-react';
+import { Bell, ChevronDown, MessageCircle, ToggleLeft, Calendar, ShieldCheck, Clock, Eye, EyeOff, Fingerprint, MapPin, X, TrendingUp, TrendingDown, ArrowRight, Send } from 'lucide-react';
 import { useProfileStore } from '../../../context/profileStore';
 import { ArcGauge, Card, Pill, SEVERITY_COLOR, SEVERITY_BG, PSB } from '../ui/shared';
 import type { ProfileKey } from '../../../data/mockData';
+import {
+  fetchFinancialPulse,
+  fetchAffordability,
+  fetchTopRecommendation,
+  fetchNarratedTransactions,
+  type FinancialPulse,
+  type AffordabilityResponse,
+  type Recommendation,
+  type TransactionNarrative,
+} from '../../../data/api';
 
 // Mock account data per profile
 const ACCOUNT_DATA: Record<string, { number: string; balance: string; ifsc: string }> = {
@@ -53,6 +63,34 @@ export default function HomeTab() {
     setBiometricPending(null);
   };
 
+  // ── Intelligence layer (Financial Pulse, Affordability, Top Rec, Tx) ──
+  const [pulse, setPulse] = useState<FinancialPulse | null>(null);
+  const [afford, setAfford] = useState<AffordabilityResponse | null>(null);
+  const [topRec, setTopRec] = useState<Recommendation | null>(null);
+  const [txs, setTxs] = useState<TransactionNarrative[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [p, a, r, t] = await Promise.all([
+          fetchFinancialPulse(activeProfile),
+          fetchAffordability(activeProfile),
+          fetchTopRecommendation(activeProfile),
+          fetchNarratedTransactions(activeProfile, 4),
+        ]);
+        if (cancelled) return;
+        setPulse(p);
+        setAfford(a);
+        setTopRec(r);
+        setTxs(t.items);
+      } catch (e) {
+        console.warn('[HomeTab] intelligence fetch failed — showing static UI', e);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [activeProfile]);
+
   // Location-based alert
   const [locationAlert, setLocationAlert] = useState(false);
   const [detectedCountry, setDetectedCountry] = useState('');
@@ -74,6 +112,7 @@ export default function HomeTab() {
   }, []);
 
   const quickActions = [
+    { label: 'Send Money', Icon: Send,          color: PSB.green,  path: '/app/transfer'    },
     { label: 'AI Advisor', Icon: MessageCircle, color: PSB.green,  path: '/app/advisor'     },
     { label: 'Scenarios',  Icon: ToggleLeft,    color: PSB.yellow, path: '/app/insights'    },
     { label: 'Life Events',Icon: Calendar,      color: PSB.greenMid,path: '/app/life-events'},
@@ -270,6 +309,135 @@ export default function HomeTab() {
             💡 Top action: {profile.leaks[0]?.action}
           </div>
         </div>
+
+        {/* ── Financial Pulse (Cleo-style daily summary) ── */}
+        {pulse && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 tracking-widest">FINANCIAL PULSE · TODAY</p>
+                <p className="text-sm font-semibold text-gray-900 mt-0.5">{pulse.headline}</p>
+              </div>
+              <div className="flex items-center gap-1 flex-shrink-0"
+                style={{ color: pulse.trend === 'up' ? PSB.green : pulse.trend === 'down' ? PSB.red : PSB.gray }}>
+                {pulse.trend === 'up'
+                  ? <TrendingUp className="w-4 h-4" />
+                  : pulse.trend === 'down'
+                  ? <TrendingDown className="w-4 h-4" />
+                  : null}
+                <span className="text-xs font-bold">{pulse.delta >= 0 ? '+' : ''}{pulse.delta}</span>
+              </div>
+            </div>
+            <div className="flex items-end gap-3 mt-3">
+              <div>
+                <span className="text-3xl font-extrabold" style={{ color: PSB.green }}>{pulse.score}</span>
+                <span className="text-xs text-gray-400 ml-1">/100</span>
+                <p className="text-[10px] text-gray-500 mt-0.5">{pulse.label}</p>
+              </div>
+              <div className="flex-1 flex gap-1.5">
+                {pulse.breakdown.map((b) => (
+                  <div key={b.label} className="flex-1">
+                    <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${b.value}%`, background: b.color }} />
+                    </div>
+                    <p className="text-[9px] text-gray-400 mt-1 text-center">{b.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* ── Top Recommendation (banner) ── */}
+        {topRec && (
+          <Card
+            className="p-4 flex items-center gap-3"
+            style={{ borderLeft: `4px solid ${SEVERITY_COLOR[topRec.severity]}` }}
+            onClick={() => navigate('/app/insights')}
+          >
+            <span className="text-2xl">{topRec.icon}</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold tracking-widest text-gray-400">TOP RECOMMENDATION</p>
+              <p className="text-sm font-bold text-gray-900 truncate">{topRec.title}</p>
+              <p className="text-[11px] text-gray-500 truncate">{topRec.desc} · {topRec.impact}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          </Card>
+        )}
+
+        {/* ── Affordability Pulse (Monzo-style) ── */}
+        {afford && (
+          <Card className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-bold text-gray-400 tracking-widest">SAFE TO SPEND · THIS MONTH</p>
+                <p className="text-lg font-extrabold text-gray-900 mt-1">
+                  ₹{Math.round(afford.safeToSpend).toLocaleString('en-IN')}
+                </p>
+              </div>
+              <Pill
+                color={afford.status === 'safe' ? PSB.green : afford.status === 'stretch' ? PSB.yellow : PSB.red}
+                bg={afford.status === 'safe' ? PSB.greenBg : afford.status === 'stretch' ? PSB.yellowBg : PSB.redBg}
+              >
+                {afford.status.toUpperCase()}
+              </Pill>
+            </div>
+            <p className="text-xs text-gray-500 mt-2 leading-relaxed">{afford.narrative}</p>
+            <div className="mt-3 flex gap-3">
+              <div className="flex-1 text-center bg-gray-50 rounded-xl py-1.5">
+                <p className="text-[9px] text-gray-400">Income</p>
+                <p className="text-[11px] font-bold text-gray-900">₹{(afford.monthlyIncome / 1000).toFixed(0)}K</p>
+              </div>
+              <div className="flex-1 text-center bg-gray-50 rounded-xl py-1.5">
+                <p className="text-[9px] text-gray-400">Bills</p>
+                <p className="text-[11px] font-bold text-gray-900">₹{(afford.committedExpenses / 1000).toFixed(0)}K</p>
+              </div>
+              <div className="flex-1 text-center bg-gray-50 rounded-xl py-1.5">
+                <p className="text-[9px] text-gray-400">Goals</p>
+                <p className="text-[11px] font-bold text-gray-900">₹{(afford.goalAllocation / 1000).toFixed(0)}K</p>
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* ── Recent Transactions (with narratives) ── */}
+        {txs.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-2.5">
+              <h3 className="text-sm font-bold text-gray-900">Recent Activity</h3>
+              <button
+                onClick={() => navigate('/app/transactions')}
+                className="text-[11px] font-semibold"
+                style={{ color: PSB.green }}
+              >
+                See all →
+              </button>
+            </div>
+            <Card className="overflow-hidden">
+              {txs.map((tx, i) => (
+                <div
+                  key={tx.id}
+                  className="flex items-start gap-3 p-3"
+                  style={{ borderBottom: i < txs.length - 1 ? '1px solid #F3F4F6' : 'none' }}
+                >
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-base flex-shrink-0"
+                    style={{ background: PSB.greenBg }}>
+                    {tx.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{tx.merchant}</p>
+                      <p className={`text-sm font-bold flex-shrink-0 ${tx.amount < 0 ? 'text-green-600' : 'text-gray-900'}`}>
+                        {tx.amount < 0 ? '+' : '−'}₹{Math.abs(tx.amount).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                    <p className="text-[11px] text-gray-500 leading-snug mt-0.5 line-clamp-2">{tx.narrative}</p>
+                  </div>
+                </div>
+              ))}
+            </Card>
+          </div>
+        )}
 
         {/* ── Wealth Leaks ── */}
         <div>

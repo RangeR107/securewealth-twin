@@ -285,3 +285,185 @@ export const fetchAuditLog = (profileKey?: ProfileKey, limit = 100) =>
   request<{ items: AuditLogEntry[]; total: number }>(
     `/audit-log?${profileKey ? `profileKey=${profileKey}&` : ''}limit=${limit}`,
   );
+
+// ─── INTELLIGENCE LAYER ──────────────────────────────────────────────────────
+
+export interface FinancialPulse {
+  score: number;
+  previousScore: number;
+  delta: number;
+  trend: 'up' | 'down' | 'flat';
+  label: string;
+  headline: string;
+  breakdown: { label: string; value: number; color: string }[];
+}
+
+export interface AffordabilityResponse {
+  monthlyIncome: number;
+  committedExpenses: number;
+  goalAllocation: number;
+  safeToSpend: number;
+  status: 'safe' | 'stretch' | 'risky';
+  narrative: string;
+  checkedAmount?: number | null;
+  canAfford?: boolean | null;
+  afterPurchase?: number | null;
+}
+
+export interface PeerBenchmark {
+  profileKey: ProfileKey;
+  cohort: string;
+  yourScore: number;
+  cohortAverage: number;
+  percentile: number;
+  narrative: string;
+  compareTo: { metric: string; you: number; peers: number; better: boolean }[];
+}
+
+export interface Recommendation {
+  id: number;
+  severity: 'critical' | 'moderate' | 'minor';
+  icon: string;
+  title: string;
+  desc: string;
+  action: string;
+  impact: string;
+  rationale: string;
+}
+
+export interface TransactionNarrative {
+  id: string;
+  merchant: string;
+  category: string;
+  amount: number;
+  timestamp: string;
+  narrative: string;
+  tag?: string | null;
+  emoji: string;
+}
+
+export interface TrustCheckResponse {
+  status: 'known' | 'new' | 'flagged';
+  label: string;
+  color: 'green' | 'yellow' | 'red';
+  pastCount: number;
+  lastSeen?: string | null;
+  note: string;
+}
+
+export const fetchFinancialPulse = (key: ProfileKey) =>
+  request<FinancialPulse>(`/intelligence/${key}/financial-pulse`);
+
+export const fetchAffordability = (key: ProfileKey, amount?: number) =>
+  request<AffordabilityResponse>(
+    `/intelligence/${key}/affordability${amount !== undefined ? `?amount=${amount}` : ''}`,
+  );
+
+export const fetchPeerBenchmark = (key: ProfileKey) =>
+  request<PeerBenchmark>(`/intelligence/${key}/peer-benchmark`);
+
+export const fetchTopRecommendation = (key: ProfileKey) =>
+  request<Recommendation>(`/intelligence/${key}/top-recommendation`);
+
+export const fetchNarratedTransactions = (key: ProfileKey, limit = 12) =>
+  request<{ items: TransactionNarrative[]; total: number }>(
+    `/intelligence/${key}/transactions?limit=${limit}`,
+  );
+
+export const trustCheck = (profileKey: ProfileKey, recipient: string) =>
+  request<TrustCheckResponse>('/intelligence/trust-check', {
+    method: 'POST',
+    body: JSON.stringify({ profileKey, recipient }),
+  });
+
+// ─── SECURITY ADDITIONS (Session DNA + Location Guard) ──────────────────────
+
+export interface SessionDNA {
+  deviceId: string;
+  deviceLabel: string;
+  trusted: boolean;
+  ipMasked: string;
+  network: string;
+  lastSeen: string;
+  location: string;
+  biometric: 'fingerprint' | 'face' | 'none';
+  behaviorScore: number;
+  signals: AuditSignal[];
+}
+
+export interface LocationGuard {
+  homeCity: string;
+  currentCity: string;
+  currentCountry: string;
+  safe: boolean;
+  riskLevel: 'Low' | 'Medium' | 'High';
+  travelMode: boolean;
+  lastLocationChange: string;
+  narrative: string;
+}
+
+export const fetchSessionDNA = (key: ProfileKey) =>
+  request<SessionDNA>(`/security/${key}/session-dna`);
+
+export const fetchLocationGuard = (key: ProfileKey) =>
+  request<LocationGuard>(`/security/${key}/location`);
+
+export const toggleTravelMode = (key: ProfileKey) =>
+  request<LocationGuard>(`/security/${key}/location/travel-mode`, { method: 'POST' });
+
+// ─── EXTRAS (KYC, notifications, compliance, help) ──────────────────────────
+
+export interface KycStatus {
+  profileKey: ProfileKey;
+  status: 'verified' | 'pending' | 'action_required';
+  level: 'Full KYC' | 'Min KYC' | 'Video KYC';
+  panLinked: boolean;
+  aadhaarLinked: boolean;
+  lastVerified: string;
+  expiresOn: string;
+  documents: { name: string; status: string; date: string }[];
+}
+
+export interface NotificationItem {
+  id: string;
+  type: 'security' | 'insight' | 'transaction' | 'guardian' | 'system';
+  title: string;
+  body: string;
+  timestamp: string;
+  read: boolean;
+  severity: 'info' | 'warning' | 'critical';
+  icon: string;
+}
+
+export interface ComplianceDoc {
+  id: string;
+  title: string;
+  category: 'regulation' | 'policy' | 'statement' | 'report';
+  issuedBy: string;
+  date: string;
+  fileSize: string;
+  summary: string;
+}
+
+export interface HelpFaq {
+  id: string;
+  question: string;
+  answer: string;
+  category: string;
+}
+
+export const fetchKyc = (key: ProfileKey) =>
+  request<KycStatus>(`/extras/${key}/kyc`);
+
+export const fetchNotifications = (key: ProfileKey) =>
+  request<NotificationItem[]>(`/extras/${key}/notifications`);
+
+export const markNotificationRead = (key: ProfileKey, id: string) =>
+  request<NotificationItem>(`/extras/${key}/notifications/${id}/read`, {
+    method: 'POST',
+  });
+
+export const fetchCompliance = () =>
+  request<ComplianceDoc[]>('/extras/compliance');
+
+export const fetchHelp = () => request<HelpFaq[]>('/extras/help');

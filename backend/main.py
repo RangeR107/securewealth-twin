@@ -14,9 +14,11 @@ from app.routers import (
     audit,
     auth,
     chat,
+    extras,
     guardians,
     incidents,
     insights,
+    intelligence,
     profiles,
     security,
     transactions,
@@ -62,3 +64,5 @@ app.include_router(incidents.router)
 app.include_router(guardians.router)
 app.include_router(chat.router)
 app.include_router(audit.router)
+app.include_router(intelligence.router)
+app.include_router(extras.router)

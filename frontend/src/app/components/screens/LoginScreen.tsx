@@ -1,11 +1,28 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Shield, Phone, Lock, CheckCircle } from 'lucide-react';
+import { login } from '../../../data/api';
 
 export default function LoginScreen() {
   const navigate = useNavigate();
   const [mobile, setMobile] = useState('');
   const [password, setPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleLogin = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      // Backend accepts any non-empty mobile/password in demo mode.
+      const { sessionToken } = await login(mobile || '9876543210', password || 'demo');
+      navigate('/otp', { state: { sessionToken } });
+    } catch (e) {
+      console.warn('[LoginScreen] login failed — continuing in offline/demo mode', e);
+      navigate('/otp');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="min-h-full flex flex-col bg-white font-sans">
@@ -84,10 +101,11 @@ export default function LoginScreen() {
 
         {/* Action Button - Swapped to Bank Green */}
         <button
-          onClick={() => navigate('/otp')}
-          className="w-full py-4 bg-[#15803D] text-white font-bold text-base rounded-2xl hover:bg-[#14532D] active:scale-[0.98] transition-all shadow-lg shadow-green-900/20"
+          onClick={handleLogin}
+          disabled={submitting}
+          className="w-full py-4 bg-[#15803D] text-white font-bold text-base rounded-2xl hover:bg-[#14532D] active:scale-[0.98] transition-all shadow-lg shadow-green-900/20 disabled:opacity-60"
         >
-          Login Securely →
+          {submitting ? 'Signing in…' : 'Login Securely →'}
         </button>
 
         <p className="text-center text-sm text-gray-500 mt-4">

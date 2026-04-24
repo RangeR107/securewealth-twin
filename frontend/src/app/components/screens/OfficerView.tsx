@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { ArrowLeft, Download, CheckCircle } from 'lucide-react';
 import { Card, Pill } from '../ui/shared';
 import { AUDIT_TIMELINE, AUDIT_SIGNALS } from '../../../data/mockData';
+import {
+  fetchIncidents,
+  fetchIncident,
+  resolveIncident,
+  type IncidentDetail,
+} from '../../../data/api';
 
 const NODE_COLOR = {
   normal: '#16A34A',
@@ -13,6 +19,49 @@ const NODE_COLOR = {
 export default function OfficerView() {
   const navigate = useNavigate();
   const [activeNode, setActiveNode] = useState(3);
+  const [incident, setIncident] = useState<IncidentDetail | null>(null);
+  const [resolving, setResolving] = useState(false);
+
+  // Load the most recent incident from the backend. Falls back to the
+  // hardcoded card below if the API is unreachable.
+  useEffect(() => {
+    (async () => {
+      try {
+        const list = await fetchIncidents();
+        if (list.length > 0) {
+          const detail = await fetchIncident(list[0].incidentId);
+          setIncident(detail);
+        }
+      } catch (e) {
+        console.warn('[OfficerView] failed to load incident — using mockData', e);
+      }
+    })();
+  }, []);
+
+  const handleResolve = async () => {
+    if (resolving) return;
+    setResolving(true);
+    try {
+      if (incident) await resolveIncident(incident.incidentId, 'resolve');
+    } catch (e) {
+      console.warn('[OfficerView] resolve failed — continuing', e);
+    } finally {
+      setResolving(false);
+      navigate('/app');
+    }
+  };
+
+  // Use live data when available; otherwise fall back to the constants so the
+  // UI still renders in demo/offline mode.
+  const timeline = incident?.timeline ?? AUDIT_TIMELINE;
+  const signals = incident?.signals ?? AUDIT_SIGNALS;
+  const incidentLabel = incident ? `#${incident.incidentId}` : '#INC-2026-00847';
+  const incidentUser = incident?.userName ?? 'Priya Sharma';
+  const incidentAmount = incident
+    ? `₹${Number(incident.amount).toLocaleString('en-IN')} transfer`
+    : '₹85,000 transfer';
+  const riskScoreText = incident ? `${incident.riskScore}/100` : '74/100';
+  const decisionText = incident?.decision ?? 'WARN';
 
   return (
     <div className="bg-gray-50 min-h-full pb-8">
@@ -35,17 +84,17 @@ export default function OfficerView() {
         <Card className="p-4">
           <div className="flex items-start justify-between mb-3">
             <div>
-              <Pill color="#4338CA" bg="#EEF2FF">#INC-2026-00847</Pill>
-              <p className="text-base font-bold text-gray-900 mt-2">Priya Sharma</p>
-              <p className="text-xs text-gray-400 mt-0.5">22 Apr 2026, 11:45 PM · ₹85,000 transfer</p>
+              <Pill color="#4338CA" bg="#EEF2FF">{incidentLabel}</Pill>
+              <p className="text-base font-bold text-gray-900 mt-2">{incidentUser}</p>
+              <p className="text-xs text-gray-400 mt-0.5">22 Apr 2026, 11:45 PM · {incidentAmount}</p>
             </div>
             <Pill color="#D97706" bg="#FFFBEB">Under Review</Pill>
           </div>
           <div className="flex gap-2">
             {[
-              ['Risk Score', '74/100', '#DC2626', '#FEF2F2'],
-              ['Persona', 'Social Eng.', '#D97706', '#FFFBEB'],
-              ['Response', 'Cool-off', '#16A34A', '#F0FDF4'],
+              ['Risk Score', riskScoreText, '#DC2626', '#FEF2F2'],
+              ['Persona', incident?.fraudPersona ?? 'Social Eng.', '#D97706', '#FFFBEB'],
+              ['Response', decisionText === 'BLOCK' ? 'Blocked' : 'Cool-off', '#16A34A', '#F0FDF4'],
             ].map(([l, v, c, bg]) => (
               <div
                 key={l}
@@ -67,10 +116,10 @@ export default function OfficerView() {
           <Card className="p-4">
             <div className="overflow-x-auto pb-2">
               <div className="flex items-start min-w-[340px] relative">
-                {AUDIT_TIMELINE.map((node, i) => (
+                {timeline.map((node, i) => (
                   <div key={i} className="flex-1 flex flex-col items-center relative">
                     {/* Connector line */}
-                    {i < AUDIT_TIMELINE.length - 1 && (
+                    {i < timeline.length - 1 && (
                       <div
                         className="absolute top-3.5 left-1/2 w-full h-0.5 z-0"
                         style={{
@@ -123,7 +172,7 @@ export default function OfficerView() {
         <Card className="p-4 bg-gray-50" style={{ borderLeft: '4px solid #4338CA' }}>
           <p className="text-[10px] font-bold text-[#4338CA] mb-3">🔬 Technical Signal Log</p>
           <div className="space-y-2">
-            {AUDIT_SIGNALS.map(({ key, value, flagged }) => (
+            {signals.map(({ key, value, flagged }) => (
               <div
                 key={key}
                 className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0"
@@ -156,11 +205,12 @@ export default function OfficerView() {
             Export Report
           </button>
           <button
-            onClick={() => navigate('/app')}
-            className="flex-1 py-3.5 bg-[#16A34A] text-white rounded-2xl font-semibold text-sm hover:bg-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+            onClick={handleResolve}
+            disabled={resolving}
+            className="flex-1 py-3.5 bg-[#16A34A] text-white rounded-2xl font-semibold text-sm hover:bg-green-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <CheckCircle className="w-4 h-4" />
-            Mark Resolved
+            {resolving ? 'Resolving…' : 'Mark Resolved'}
           </button>
         </div>
 

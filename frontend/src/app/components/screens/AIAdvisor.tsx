@@ -4,28 +4,43 @@ import { ArrowLeft, Send, Mic } from 'lucide-react';
 import { useProfileStore } from '../../../context/profileStore';
 import { INITIAL_CHAT } from '../../../data/mockData';
 import type { ChatMessage } from '../../../data/mockData';
+import { sendChatMessage } from '../../../data/api';
 
 export default function AIAdvisor() {
   const navigate = useNavigate();
-  const { profile } = useProfileStore();
+  const { profile, activeProfile } = useProfileStore();
   const [messages, setMessages] = useState<ChatMessage[]>(INITIAL_CHAT);
   const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
 
-  const send = () => {
-    if (!input.trim()) return;
-    const userMsg: ChatMessage = { role: 'user', text: input };
-    const aiReply: ChatMessage = {
-      role: 'ai',
-      text: 'Analyzing your Wealth DNA to answer that...',
-      bullets: [
-        'Processing your financial profile',
-        'Checking current market conditions',
-        'Reviewing your active goals',
-      ],
-      disclaimer: true,
-    };
-    setMessages((prev) => [...prev, userMsg, aiReply]);
+  const send = async () => {
+    if (!input.trim() || sending) return;
+    const userText = input;
+    const userMsg: ChatMessage = { role: 'user', text: userText };
+    setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setSending(true);
+    try {
+      const { reply } = await sendChatMessage(activeProfile, userText);
+      setMessages((prev) => [...prev, reply]);
+    } catch (e) {
+      console.warn('[AIAdvisor] chat API failed — showing fallback reply', e);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'ai',
+          text: 'Analyzing your Wealth DNA to answer that...',
+          bullets: [
+            'Processing your financial profile',
+            'Checking current market conditions',
+            'Reviewing your active goals',
+          ],
+          disclaimer: true,
+        },
+      ]);
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -127,7 +142,8 @@ export default function AIAdvisor() {
           />
           <button
             onClick={send}
-            className="w-8 h-8 bg-[#4338CA] rounded-xl flex items-center justify-center hover:bg-[#3730A3] transition-colors flex-shrink-0"
+            disabled={sending}
+            className="w-8 h-8 bg-[#4338CA] rounded-xl flex items-center justify-center hover:bg-[#3730A3] transition-colors flex-shrink-0 disabled:opacity-60"
           >
             <Send className="w-4 h-4 text-white" />
           </button>

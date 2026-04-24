@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { Check } from 'lucide-react';
 import { BackArrow, Card, Pill } from '../ui/shared';
+import { useProfileStore } from '../../../context/profileStore';
+import { addGuardian } from '../../../data/api';
 
 interface FormState {
   name: string;
@@ -12,7 +14,9 @@ interface FormState {
 
 export default function GuardianSetup() {
   const navigate = useNavigate();
+  const { activeProfile } = useProfileStore();
   const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState<FormState>({
     name: '',
     phone: '',
@@ -21,6 +25,25 @@ export default function GuardianSetup() {
   });
 
   const isFormValid = form.name.trim() && form.phone.trim() && form.consent;
+
+  const sendRequest = async () => {
+    if (!isFormValid || submitting) return;
+    setSubmitting(true);
+    try {
+      await addGuardian({
+        profileKey: activeProfile,
+        name: form.name,
+        phone: form.phone,
+        relationship: form.relationship,
+        consent: form.consent,
+      });
+    } catch (e) {
+      console.warn('[GuardianSetup] addGuardian API failed — proceeding in demo mode', e);
+    } finally {
+      setSubmitting(false);
+      setStep(3);
+    }
+  };
 
   return (
     <div className="min-h-full bg-gray-50">
@@ -159,15 +182,15 @@ export default function GuardianSetup() {
             </button>
 
             <button
-              disabled={!isFormValid}
-              onClick={() => setStep(3)}
+              disabled={!isFormValid || submitting}
+              onClick={sendRequest}
               className={`w-full py-3.5 rounded-2xl font-bold text-sm transition-all ${
-                isFormValid
+                isFormValid && !submitting
                   ? 'bg-[#4338CA] text-white hover:bg-[#3730A3] active:scale-[0.98]'
                   : 'bg-gray-200 text-gray-400 cursor-not-allowed'
               }`}
             >
-              Send Guardian Request →
+              {submitting ? 'Sending…' : 'Send Guardian Request →'}
             </button>
           </Card>
         )}

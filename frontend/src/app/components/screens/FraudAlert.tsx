@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Check, MapPin } from 'lucide-react';
 import { PSB } from '../ui/shared';
+import {
+  fetchIncident,
+  fetchIncidents,
+  resolveIncident,
+  type IncidentDetail,
+} from '../../../data/api';
 
 const CHECKLIST = [
   'I initiated this transaction myself',
@@ -11,14 +17,62 @@ const CHECKLIST = [
 
 export default function FraudAlert() {
   const navigate = useNavigate();
+  const location = useLocation() as { state?: { incidentId?: string } };
   const [secs, setSecs] = useState(28 * 60 + 43);
   const [checked, setChecked] = useState([false, false, false]);
+  const [incident, setIncident] = useState<IncidentDetail | null>(null);
+  const [resolving, setResolving] = useState(false);
   const [alertTime] = useState(() =>
     new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
   );
   const [alertDate] = useState(() =>
     new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
   );
+
+  // If a transaction submit forwarded us here with an incidentId, load it.
+  // Otherwise, pull the most recent incident so the "Simulate Fraud" button
+  // also surfaces real backend data.
+  useEffect(() => {
+    (async () => {
+      try {
+        if (location.state?.incidentId) {
+          const detail = await fetchIncident(location.state.incidentId);
+          setIncident(detail);
+        } else {
+          const list = await fetchIncidents();
+          if (list.length > 0) {
+            const detail = await fetchIncident(list[0].incidentId);
+            setIncident(detail);
+          }
+        }
+      } catch (e) {
+        console.warn('[FraudAlert] incident fetch failed — using static UI', e);
+      }
+    })();
+  }, [location.state?.incidentId]);
+
+  const handleConfirm = async () => {
+    if (resolving) return;
+    setResolving(true);
+    try {
+      if (incident) await resolveIncident(incident.incidentId, 'resolve');
+    } catch (e) {
+      console.warn('[FraudAlert] resolve failed — continuing', e);
+    } finally {
+      setResolving(false);
+      navigate('/app');
+    }
+  };
+
+  const handleCancel = async () => {
+    try {
+      if (incident) await resolveIncident(incident.incidentId, 'dismiss');
+    } catch (e) {
+      console.warn('[FraudAlert] dismiss failed — continuing', e);
+    } finally {
+      navigate('/app/security');
+    }
+  };
 
   useEffect(() => {
     const t = setInterval(() => setSecs((p) => (p > 0 ? p - 1 : 0)), 1000);
@@ -105,19 +159,19 @@ export default function FraudAlert() {
       {/* Action Buttons */}
       <div className="w-full max-w-sm mt-6 space-y-3">
         <button
-          disabled={!allChecked}
-          onClick={() => navigate('/app')}
+          disabled={!allChecked || resolving}
+          onClick={handleConfirm}
           className="w-full py-4 rounded-2xl font-bold text-base transition-all"
           style={{
             background: allChecked ? PSB.green : '#E5E7EB',
             color:      allChecked ? 'white'   : '#9CA3AF',
-            cursor:     allChecked ? 'pointer' : 'not-allowed',
+            cursor:     allChecked && !resolving ? 'pointer' : 'not-allowed',
           }}
         >
-          {allChecked ? 'Confirm & Proceed ✓' : 'Complete checklist to proceed'}
+          {resolving ? 'Processing…' : allChecked ? 'Confirm & Proceed ✓' : 'Complete checklist to proceed'}
         </button>
         <button
-          onClick={() => navigate('/app/security')}
+          onClick={handleCancel}
           className="w-full py-4 bg-white rounded-2xl font-bold text-sm active:scale-[0.98] transition-all border-2"
           style={{ color: PSB.red, borderColor: PSB.red }}
         >

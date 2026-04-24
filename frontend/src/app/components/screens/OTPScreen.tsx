@@ -1,12 +1,29 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { StatusBar, BackArrow } from '../ui/shared';
+import { verifyOtp } from '../../../data/api';
 
 export default function OTPScreen() {
   const navigate = useNavigate();
+  const location = useLocation() as { state?: { sessionToken?: string } };
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [timer, setTimer] = useState(42);
+  const [submitting, setSubmitting] = useState(false);
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+
+  const handleVerify = async () => {
+    if (submitting) return;
+    setSubmitting(true);
+    const code = otp.join('').padEnd(6, '1'); // backend accepts any 6-digit in demo
+    try {
+      await verifyOtp(location.state?.sessionToken ?? 'demo-session', code);
+    } catch (e) {
+      console.warn('[OTPScreen] OTP verify failed — continuing in offline/demo mode', e);
+    } finally {
+      setSubmitting(false);
+      navigate('/app');
+    }
+  };
 
   useEffect(() => {
     const t = setInterval(() => setTimer((p) => (p > 0 ? p - 1 : 0)), 1000);
@@ -71,10 +88,11 @@ export default function OTPScreen() {
         </p>
 
         <button
-          onClick={() => navigate('/app')}
-          className="w-full py-4 bg-[#4338CA] text-white font-bold text-base rounded-2xl hover:bg-[#3730A3] active:scale-[0.98] transition-all mb-5"
+          onClick={handleVerify}
+          disabled={submitting}
+          className="w-full py-4 bg-[#4338CA] text-white font-bold text-base rounded-2xl hover:bg-[#3730A3] active:scale-[0.98] transition-all mb-5 disabled:opacity-60"
         >
-          Verify & Continue →
+          {submitting ? 'Verifying…' : 'Verify & Continue →'}
         </button>
 
         <p className="text-xs text-gray-400 mt-6">
